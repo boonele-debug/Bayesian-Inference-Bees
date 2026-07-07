@@ -28,7 +28,7 @@ def _(mo):
 
 @app.cell
 def _():
-    flowers = ["red", "blue", "yellow"]
+    flowers = ["red flower", "blue flower", "yellow flower"]
     flower_colors = ["#d62728", "#1f4fd6", "#e6c000"] 
     return flower_colors, flowers
 
@@ -58,7 +58,7 @@ def _(mo):
 @app.cell
 def _(flowers, mo):
     slider_0 = mo.ui.slider(start=0, stop=12, label=flowers[0], value=1)
-    slider_1 = mo.ui.slider(start=0, stop=12, label=flowers[1], value=10)
+    slider_1 = mo.ui.slider(start=0, stop=12, label=flowers[1], value=12)
     slider_2 = mo.ui.slider(start=0, stop=12, label=flowers[2], value=4)
     return slider_0, slider_1, slider_2
 
@@ -155,7 +155,7 @@ def _(Z_posterior, Z_prior, alpha_posterior, alpha_prior):
 
 @app.cell
 def _(MaxNLocator, T1, T2, T3, dirichlet, np, plt):
-    def viz_dirichlet_density(alpha, title, sub_title, vmax=26.0, cmap="inferno"):
+    def viz_dirichlet_density(alpha, title, sub_title, vmax=29.0, cmap="inferno", theta_mle=None):
         fig_tri, ax_tri = plt.subplots(subplot_kw={"projection": "ternary"})
 
         Z = [dirichlet.pdf(np.array([T1[i], T2[i], T3[i]]), alpha) for i in range(T1.shape[0])]
@@ -181,6 +181,9 @@ def _(MaxNLocator, T1, T2, T3, dirichlet, np, plt):
             transform=ax_tri.transAxes,
             ha="center", fontsize=16, color="gray",
         )
+
+        if theta_mle is not None:
+            ax_tri.scatter(theta_mle[0], theta_mle[1], theta_mle[2], marker="^", color="white")
     
         cbar = fig_tri.colorbar(cs, ax=ax_tri, shrink=0.6)
         cbar.locator = MaxNLocator(nbins=4)  # roughly 4 ticks
@@ -203,11 +206,12 @@ def _(alpha_prior, viz_dirichlet_density):
 
 
 @app.cell
-def _(alpha_posterior, viz_dirichlet_density):
+def _(alpha_posterior, np, visit_counts, viz_dirichlet_density):
     viz_dirichlet_density(
         alpha_posterior, 
         "posterior", 
-        f"$\\alpha+x$ = ({alpha_posterior[0]:g}, {alpha_posterior[1]:g}, {alpha_posterior[2]:g})"
+        f"$\\alpha+x$ = ({alpha_posterior[0]:g}, {alpha_posterior[1]:g}, {alpha_posterior[2]:g})",
+        theta_mle=visit_counts / np.sum(visit_counts)
     )
     return
 
@@ -233,9 +237,8 @@ def _(flower_colors, flowers, plt, visit_counts):
                 fontsize=11,
             )
 
-        ax_bar.set_xlabel(r"flower")
-        ax_bar.set_ylabel(r"number of visits")
-        ax_bar.set_title(f"observed visit counts (n = {int(visit_counts.sum())})")
+        ax_bar.set_ylabel(r"number of bee visits")
+        ax_bar.set_title(f"observations (n = {int(visit_counts.sum())})")
         ax_bar.set_ylim(0, max(visit_counts.max(), 1) * 1.15 + 1)
         ax_bar.spines[["top", "right"]].set_visible(False)
         fig_bar.tight_layout()
