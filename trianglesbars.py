@@ -9,10 +9,28 @@ def _():
     import marimo as mo
     import numpy as np
     import matplotlib.pyplot as plt
+    import matplotlib
     from scipy.special import gammaln
     from scipy.stats import dirichlet
     import mpltern
-    return dirichlet, mo, np, plt
+    from matplotlib.ticker import MaxNLocator
+    matplotlib.rcParams.update({'font.size': 16})
+    return MaxNLocator, dirichlet, mo, np, plt
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # 🌸 problem setup
+    """)
+    return
+
+
+@app.cell
+def _():
+    flowers = ["red", "blue", "yellow"]
+    flower_colors = ["#d62728", "#1f4fd6", "#e6c000"] 
+    return flower_colors, flowers
 
 
 @app.cell(hide_code=True)
@@ -25,7 +43,7 @@ def _(mo):
 
 @app.cell
 def _(np):
-    alpha_prior = np.array([5.0, 5.0, 5.0])
+    alpha_prior = np.array([4.0, 4.0, 4.0])
     return (alpha_prior,)
 
 
@@ -38,16 +56,36 @@ def _(mo):
 
 
 @app.cell
-def _(np):
-    visit_counts = np.array([12.0, 6.0, 2.0])     
-    return (visit_counts,)
+def _(flowers, mo):
+    slider_0 = mo.ui.slider(start=0, stop=12, label=flowers[0], value=1)
+    slider_1 = mo.ui.slider(start=0, stop=12, label=flowers[1], value=10)
+    slider_2 = mo.ui.slider(start=0, stop=12, label=flowers[2], value=4)
+    return slider_0, slider_1, slider_2
 
 
 @app.cell
-def _():
-    flower_names = ["red flower", "blue flower", "yellow flower"]
-    flower_colors = ["#d62728", "#1f4fd6", "#e6c000"] 
-    return flower_colors, flower_names
+def _(mo, slider_0):
+    mo.hstack([slider_0, mo.md(f"visit counts: {slider_0.value}")])
+    return
+
+
+@app.cell
+def _(mo, slider_0, slider_1):
+    mo.hstack([slider_1, mo.md(f"visit counts: {slider_0.value}")])
+    return
+
+
+@app.cell
+def _(mo, slider_0, slider_2):
+    mo.hstack([slider_2, mo.md(f"visit counts: {slider_0.value}")])
+    return
+
+
+@app.cell
+def _(np, slider_0, slider_1, slider_2):
+    visit_counts = np.array([slider_0.value, slider_1.value, slider_2.value])
+    visit_counts
+    return (visit_counts,)
 
 
 @app.cell(hide_code=True)
@@ -96,16 +134,7 @@ def _(simplex_grid):
 
 
 @app.cell
-def _(T1, T2, T3, alpha_posterior, alpha_prior, dirichlet, np, plt):
-    fig_tri, axes_tri = plt.subplots(
-        1, 2, figsize=(11, 5.5), subplot_kw={"projection": "ternary"}
-    )
-
-    Z_prior = [dirichlet.pdf(np.array([T1[i], T2[i], T3[i]]), alpha_prior) for i in range(T1.shape[0])]
-    Z_posterior = [dirichlet.pdf(np.array([T1[i], T2[i], T3[i]]), alpha_posterior) for i in range(T1.shape[0])]
-
-    vmax = np.max([np.max(Z_prior), np.max(Z_posterior)])
-
+def _(Z_posterior, Z_prior, alpha_posterior, alpha_prior):
     panel_data = [
         (
             Z_prior,
@@ -121,65 +150,98 @@ def _(T1, T2, T3, alpha_posterior, alpha_prior, dirichlet, np, plt):
         ),
     ]
 
-    for ax_tri, (Z, alpha, main_title, sub_title) in zip(axes_tri, panel_data):
-        cs = ax_tri.tricontourf(T1, T2, T3, Z, levels=12, cmap="Greens", vmin=0.0, vmax=vmax)
+    return
+
+
+@app.cell
+def _(MaxNLocator, T1, T2, T3, dirichlet, np, plt):
+    def viz_dirichlet_density(alpha, title, sub_title, vmax=26.0, cmap="inferno"):
+        fig_tri, ax_tri = plt.subplots(subplot_kw={"projection": "ternary"})
+
+        Z = [dirichlet.pdf(np.array([T1[i], T2[i], T3[i]]), alpha) for i in range(T1.shape[0])]
+        if np.max(Z) > vmax:
+            raise Exception(f"increase vmax! at least {np.max(Z)}")
+
+        cs = ax_tri.tricontourf(T1, T2, T3, Z, levels=12, cmap=cmap, vmin=0.0, vmax=vmax)
+    
         ax_tri.set_tlabel(r"$\theta_1$")
         ax_tri.set_llabel(r"$\theta_2$")
         ax_tri.set_rlabel(r"$\theta_3$")
         ax_tri.taxis.set_label_position("tick1")
         ax_tri.laxis.set_label_position("tick1")
         ax_tri.raxis.set_label_position("tick1")
-        # title placed below the triangle instead of above
+    
         ax_tri.text(
-            0.5, -0.32, main_title,
+            0.5, -0.5, title,
             transform=ax_tri.transAxes,
-            ha="center", fontsize=13, fontweight="bold",
+            ha="center", fontsize=16, fontweight="bold",
         )
         ax_tri.text(
-            0.5, -0.42, sub_title,
+            0.5, -0.65, sub_title,
             transform=ax_tri.transAxes,
-            ha="center", fontsize=9, color="gray",
+            ha="center", fontsize=16, color="gray",
         )
+    
         cbar = fig_tri.colorbar(cs, ax=ax_tri, shrink=0.6)
-        cbar.set_label("probability density")
+        cbar.locator = MaxNLocator(nbins=4)  # roughly 4 ticks
+        cbar.update_ticks()
+        cbar.set_label("density")
 
-    fig_tri.tight_layout()
-    fig_tri
-    return
+        fig_tri.tight_layout()
+        return fig_tri
+    return (viz_dirichlet_density,)
 
 
 @app.cell
-def _(flower_colors, flower_names, plt, visit_counts):
-    #visit count bar graph
-    fig_bar, ax_bar = plt.subplots(figsize=(6, 5))
-    bars = ax_bar.bar(
-        flower_names,
-        visit_counts,
-        color=flower_colors,
-        edgecolor="black",
-        linewidth=0.8,
+def _(alpha_prior, viz_dirichlet_density):
+    viz_dirichlet_density(
+        alpha_prior, 
+        "prior", 
+        f"$\\alpha$ = ({alpha_prior[0]:g}, {alpha_prior[1]:g}, {alpha_prior[2]:g})"
     )
-
-    for bar, c in zip(bars, visit_counts):
-        ax_bar.text(
-            bar.get_x() + bar.get_width() / 2,
-            bar.get_height() + max(visit_counts.max(), 1) * 0.02 + 0.1,
-            str(int(c)),
-            ha="center",
-            fontsize=11,
-        )
-
-    ax_bar.set_ylabel(r"number of visits ($x_f$)")
-    ax_bar.set_title(f"observed bee visits per flower (n = {int(visit_counts.sum())})")
-    ax_bar.set_ylim(0, max(visit_counts.max(), 1) * 1.15 + 1)
-    ax_bar.spines[["top", "right"]].set_visible(False)
-    fig_bar.tight_layout()
-    fig_bar
     return
 
 
 @app.cell
-def _():
+def _(alpha_posterior, viz_dirichlet_density):
+    viz_dirichlet_density(
+        alpha_posterior, 
+        "posterior", 
+        f"$\\alpha+x$ = ({alpha_posterior[0]:g}, {alpha_posterior[1]:g}, {alpha_posterior[2]:g})"
+    )
+    return
+
+
+@app.cell
+def _(flower_colors, flowers, plt, visit_counts):
+    def viz_visit_counts(visit_counts):
+        fig_bar, ax_bar = plt.subplots(figsize=(6, 5))
+        bars = ax_bar.bar(
+            flowers,
+            visit_counts,
+            color=flower_colors,
+            edgecolor="black",
+            linewidth=0.8,
+        )
+    
+        for bar, c in zip(bars, visit_counts):
+            ax_bar.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + max(visit_counts.max(), 1) * 0.02 + 0.1,
+                str(int(c)),
+                ha="center",
+                fontsize=11,
+            )
+
+        ax_bar.set_xlabel(r"flower")
+        ax_bar.set_ylabel(r"number of visits")
+        ax_bar.set_title(f"observed visit counts (n = {int(visit_counts.sum())})")
+        ax_bar.set_ylim(0, max(visit_counts.max(), 1) * 1.15 + 1)
+        ax_bar.spines[["top", "right"]].set_visible(False)
+        fig_bar.tight_layout()
+        return fig_bar
+
+    viz_visit_counts(visit_counts)
     return
 
 
