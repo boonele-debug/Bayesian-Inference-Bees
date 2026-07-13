@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.6"
+__generated_with = "0.19.11"
 app = marimo.App(width="medium")
 
 
@@ -10,26 +10,30 @@ def _():
     import numpy as np
     import matplotlib.pyplot as plt
     import matplotlib
+    import seaborn as sns
     from scipy.special import gammaln
     from scipy.stats import dirichlet
     import mpltern
     from matplotlib.ticker import MaxNLocator
     matplotlib.rcParams.update({'font.size': 16})
-    return MaxNLocator, dirichlet, mo, np, plt
+    return MaxNLocator, dirichlet, mo, np, plt, sns
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # 🌸 problem setup
+    # 🌸 ::selfhst:nyt-spelling-bee:: problem setup
+
+    define the list of flowers
     """)
     return
 
 
 @app.cell
-def _():
+def _(sns):
     flowers = ["red flower", "blue flower", "yellow flower"]
     flower_colors = ["#d62728", "#1f4fd6", "#e6c000"] 
+    sns.color_palette(flower_colors)
     return flower_colors, flowers
 
 
@@ -50,7 +54,7 @@ def _(np):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # data
+    # data (visit counts)
     """)
     return
 
@@ -63,19 +67,19 @@ def _(flowers, mo):
     return slider_0, slider_1, slider_2
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, slider_0):
     mo.hstack([slider_0, mo.md(f"visit counts: {slider_0.value}")])
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, slider_0, slider_1):
     mo.hstack([slider_1, mo.md(f"visit counts: {slider_0.value}")])
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, slider_0, slider_2):
     mo.hstack([slider_2, mo.md(f"visit counts: {slider_0.value}")])
     return
@@ -124,6 +128,7 @@ def _(np):
         mask = T3 >= 0
 
         return T1[mask], T2[mask], T3[mask]
+
     return (simplex_grid,)
 
 
@@ -131,26 +136,6 @@ def _(np):
 def _(simplex_grid):
     T1, T2, T3 = simplex_grid()
     return T1, T2, T3
-
-
-@app.cell
-def _(Z_posterior, Z_prior, alpha_posterior, alpha_prior):
-    panel_data = [
-        (
-            Z_prior,
-            alpha_prior,
-            "prior",
-            f"$\\alpha$ = ({alpha_prior[0]:g}, {alpha_prior[1]:g}, {alpha_prior[2]:g})",
-        ),
-        (
-            Z_posterior,
-            alpha_posterior,
-            "posterior",
-            f"$\\alpha+x$ = ({alpha_posterior[0]:g}, {alpha_posterior[1]:g}, {alpha_posterior[2]:g})"#,  x = {visit_counts.tolist()}",
-        ),
-    ]
-
-    return
 
 
 @app.cell
@@ -163,14 +148,14 @@ def _(MaxNLocator, T1, T2, T3, dirichlet, np, plt):
             raise Exception(f"increase vmax! at least {np.max(Z)}")
 
         cs = ax_tri.tricontourf(T1, T2, T3, Z, levels=12, cmap=cmap, vmin=0.0, vmax=vmax)
-    
+
         ax_tri.set_tlabel(r"$\theta_1$")
         ax_tri.set_llabel(r"$\theta_2$")
         ax_tri.set_rlabel(r"$\theta_3$")
         ax_tri.taxis.set_label_position("tick1")
         ax_tri.laxis.set_label_position("tick1")
         ax_tri.raxis.set_label_position("tick1")
-    
+
         ax_tri.text(
             0.5, -0.5, title,
             transform=ax_tri.transAxes,
@@ -184,7 +169,7 @@ def _(MaxNLocator, T1, T2, T3, dirichlet, np, plt):
 
         if theta_mle is not None:
             ax_tri.scatter(theta_mle[0], theta_mle[1], theta_mle[2], marker="^", color="white")
-    
+
         cbar = fig_tri.colorbar(cs, ax=ax_tri, shrink=0.6)
         cbar.locator = MaxNLocator(nbins=4)  # roughly 4 ticks
         cbar.update_ticks()
@@ -192,6 +177,7 @@ def _(MaxNLocator, T1, T2, T3, dirichlet, np, plt):
 
         fig_tri.tight_layout()
         return fig_tri
+
     return (viz_dirichlet_density,)
 
 
@@ -227,7 +213,7 @@ def _(flower_colors, flowers, plt, visit_counts):
             edgecolor="black",
             linewidth=0.8,
         )
-    
+
         for bar, c in zip(bars, visit_counts):
             ax_bar.text(
                 bar.get_x() + bar.get_width() / 2,
