@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.11"
+__generated_with = "0.23.10"
 app = marimo.App(width="medium")
 
 
@@ -47,7 +47,7 @@ def _(mo):
 
 @app.cell
 def _(np):
-    alpha_prior = np.array([4.0, 4.0, 4.0])
+    alpha_prior = np.array([2.0, 2.0, 2.0])
     return (alpha_prior,)
 
 
@@ -59,36 +59,27 @@ def _(mo):
     return
 
 
-@app.cell
-def _(flowers, mo):
-    slider_0 = mo.ui.slider(start=0, stop=12, label=flowers[0], value=1)
-    slider_1 = mo.ui.slider(start=0, stop=12, label=flowers[1], value=12)
-    slider_2 = mo.ui.slider(start=0, stop=12, label=flowers[2], value=4)
-    return slider_0, slider_1, slider_2
-
-
 @app.cell(hide_code=True)
-def _(mo, slider_0):
-    mo.hstack([slider_0, mo.md(f"visit counts: {slider_0.value}")])
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo, slider_0, slider_1):
-    mo.hstack([slider_1, mo.md(f"visit counts: {slider_0.value}")])
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo, slider_0, slider_2):
-    mo.hstack([slider_2, mo.md(f"visit counts: {slider_0.value}")])
-    return
+def _(mo):
+    dropdown = mo.ui.dropdown(
+        options=["small", "medium", "large"], value="small", label="choose data size"
+    )
+    dropdown
+    return (dropdown,)
 
 
 @app.cell
-def _(np, slider_0, slider_1, slider_2):
-    visit_counts = np.array([slider_0.value, slider_1.value, slider_2.value])
-    visit_counts
+def _(dropdown, np):
+    data_size = dropdown.value
+
+    size_to_visit_counts = {
+        "small": [2, 4, 0],
+        "medium": [6, 12, 1],
+        "large": [10, 15, 2]
+    }
+
+    visit_counts = np.array(size_to_visit_counts[data_size])
+    data_size, visit_counts
     return (visit_counts,)
 
 
@@ -140,7 +131,7 @@ def _(simplex_grid):
 
 @app.cell
 def _(MaxNLocator, T1, T2, T3, dirichlet, np, plt):
-    def viz_dirichlet_density(alpha, title, sub_title, vmax=29.0, cmap="inferno", theta_mle=None):
+    def viz_dirichlet_density(alpha, title, sub_title, vmax=32, cmap="inferno", theta_mle=None):
         fig_tri, ax_tri = plt.subplots(subplot_kw={"projection": "ternary"})
 
         Z = [dirichlet.pdf(np.array([T1[i], T2[i], T3[i]]), alpha) for i in range(T1.shape[0])]
