@@ -49,7 +49,7 @@ def _(mo):
 
 @app.cell
 def _(np):
-    alpha_prior = np.array([2.0, 2.0, 2.0])
+    alpha_prior = np.array([3.0, 3.0, 3.0])
     return (alpha_prior,)
 
 
@@ -75,9 +75,9 @@ def _(dropdown, np):
     data_size = dropdown.value
 
     size_to_visit_counts = {
-        "small": [2, 4, 0],
+        "small": [2, 5, 1],
         "medium": [6, 12, 1],
-        "large": [10, 15, 2]
+        "large": [11, 26, 2]
     }
 
     visit_counts = np.array(size_to_visit_counts[data_size])
@@ -104,6 +104,8 @@ def _(MaxNLocator, T1, T2, T3, data_size, multinomial, np, plt, setup_simplex):
             ]
         )
 
+        print("max score: ", Z.max())
+
         if vmax is None:
             vmax = Z.max() * 1.05
 
@@ -126,7 +128,7 @@ def _(MaxNLocator, T1, T2, T3, data_size, multinomial, np, plt, setup_simplex):
         cbar = fig_tri.colorbar(cs, ax=ax_tri, shrink=0.6)
         cbar.locator = MaxNLocator(nbins=4)
         cbar.update_ticks()
-        cbar.set_label("density")
+        cbar.set_label("score")
 
         fig_tri.tight_layout()
         plt.savefig(f"likelihood_{data_size}.pdf", format="pdf")
@@ -140,7 +142,7 @@ def _(theta_mle, visit_counts, viz_likelihood):
     viz_likelihood(
         visit_counts, 
         "likelihood", 
-        f"$x$ = ({visit_counts[0]:g}, {visit_counts[1]:g}, {visit_counts[2]:g})",
+        rf"$\mathbf{{x}}$ = ({visit_counts[0]:g}, {visit_counts[1]:g}, {visit_counts[2]:g})",
         theta_mle=theta_mle
     )
     return
@@ -210,11 +212,28 @@ def _(flower_colors, flowers, plt):
 
 
 @app.cell
-def _(MaxNLocator, T1, T2, T3, data_size, dirichlet, np, plt, setup_simplex):
-    def viz_dirichlet_density(alpha, title, sub_title, vmax=32, cmap="inferno", theta_mle=None):
+def _(
+    MaxNLocator,
+    T1,
+    T2,
+    T3,
+    data_size,
+    dirichlet,
+    np,
+    plt,
+    setup_simplex,
+    vmax_pr_po,
+):
+    def viz_dirichlet_density(
+        alpha, title, sub_title, 
+        vmax=vmax_pr_po[data_size], cmap="inferno", theta_mle=None
+    ):    
         fig_tri, ax_tri = setup_simplex()
         Z = [dirichlet.pdf(np.array([T1[i], T2[i], T3[i]]), alpha) for i in range(T1.shape[0])]
-        if np.max(Z) > vmax:
+        max_Z = np.max(Z)
+        print("max density: ", max_Z)
+
+        if max_Z > vmax:
             raise Exception(f"increase vmax! at least {np.max(Z)}")
 
         cs = ax_tri.tricontourf(T1, T2, T3, Z, levels=12, cmap=cmap, vmin=0.0, vmax=vmax)
@@ -246,22 +265,32 @@ def _(MaxNLocator, T1, T2, T3, data_size, dirichlet, np, plt, setup_simplex):
 
 
 @app.cell
+def _():
+    vmax_pr_po = {
+        "small": 25.0, 
+        "medium": 30.0,
+        "large": 50.0
+    }
+    return (vmax_pr_po,)
+
+
+@app.cell
 def _(alpha_prior, viz_dirichlet_density):
     viz_dirichlet_density(
         alpha_prior, 
         "prior", 
-        f"$\\alpha$ = ({alpha_prior[0]:g}, {alpha_prior[1]:g}, {alpha_prior[2]:g})"
+        rf"$\mathbf{{\alpha}}$ = ({alpha_prior[0]:g}, {alpha_prior[1]:g}, {alpha_prior[2]:g})"
     )
     return
 
 
 @app.cell
-def _(alpha_posterior, np, visit_counts, viz_dirichlet_density):
+def _(alpha_posterior, theta_mle, viz_dirichlet_density):
     viz_dirichlet_density(
         alpha_posterior, 
         "posterior", 
-        f"$\\alpha+x$ = ({alpha_posterior[0]:g}, {alpha_posterior[1]:g}, {alpha_posterior[2]:g})",
-        theta_mle=visit_counts / np.sum(visit_counts)
+        rf"$\mathbf{{\alpha+x}}$ = ({alpha_posterior[0]:g}, {alpha_posterior[1]:g}, {alpha_posterior[2]:g})",
+        theta_mle=theta_mle
     )
     return
 
@@ -295,11 +324,6 @@ def _(flower_colors, flowers, plt, visit_counts):
         return fig_bar
 
     viz_visit_counts(visit_counts)
-    return
-
-
-@app.cell
-def _():
     return
 
 
