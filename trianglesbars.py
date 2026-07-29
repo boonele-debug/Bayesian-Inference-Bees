@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.10"
+__generated_with = "0.23.11"
 app = marimo.App(width="medium")
 
 
@@ -13,10 +13,11 @@ def _():
     import seaborn as sns
     from scipy.special import gammaln
     from scipy.stats import dirichlet
+    from scipy.stats import multinomial
     import mpltern
     from matplotlib.ticker import MaxNLocator
     matplotlib.rcParams.update({'font.size': 16})
-    return MaxNLocator, dirichlet, mo, np, plt, sns
+    return MaxNLocator, dirichlet, mo, multinomial, np, plt, sns
 
 
 @app.cell(hide_code=True)
@@ -31,8 +32,9 @@ def _(mo):
 
 @app.cell
 def _(sns):
-    flowers = ["red flower", "blue flower", "yellow flower"]
-    flower_colors = ["#d62728", "#1f4fd6", "#e6c000"] 
+    flowers = ["purple", "yellow", "green"]
+    flower_colors = [[159, 141, 248], [206, 182, 2], [0, 179, 7]] 
+    flower_colors = [[c / 255 for c in rgb] for rgb in flower_colors]
     sns.color_palette(flower_colors)
     return flower_colors, flowers
 
@@ -80,7 +82,68 @@ def _(dropdown, np):
 
     visit_counts = np.array(size_to_visit_counts[data_size])
     data_size, visit_counts
-    return (visit_counts,)
+    return data_size, visit_counts
+
+
+@app.cell
+def _(np, visit_counts):
+    theta_mle = visit_counts / np.sum(visit_counts)
+    return (theta_mle,)
+
+
+@app.cell
+def _(MaxNLocator, T1, T2, T3, data_size, multinomial, np, plt, setup_simplex):
+    def viz_likelihood(visit_counts, title, subtitle, vmax=None, cmap="viridis", theta_mle=None):
+        fig_tri, ax_tri = setup_simplex()
+
+        n = np.sum(visit_counts)
+        Z = np.array(
+            [
+                multinomial.pmf(visit_counts, n=n, p=[T1[i], T2[i], T3[i]])
+                for i in range(T1.shape[0])
+            ]
+        )
+
+        if vmax is None:
+            vmax = Z.max() * 1.05
+
+        cs = ax_tri.tricontourf(T1, T2, T3, Z, levels=12, cmap=cmap, vmin=0.0, vmax=vmax)
+
+        ax_tri.text(
+            0.5, -0.5, title,
+            transform=ax_tri.transAxes,
+            ha="center", fontsize=16, fontweight="bold",
+        )
+        ax_tri.text(
+            0.5, -0.65, subtitle,
+            transform=ax_tri.transAxes,
+            ha="center", fontsize=16, color="gray",
+        )
+
+        if theta_mle is not None:
+            ax_tri.scatter(theta_mle[0], theta_mle[1], theta_mle[2], marker="^", color="white")
+
+        cbar = fig_tri.colorbar(cs, ax=ax_tri, shrink=0.6)
+        cbar.locator = MaxNLocator(nbins=4)
+        cbar.update_ticks()
+        cbar.set_label("density")
+
+        fig_tri.tight_layout()
+        plt.savefig(f"likelihood_{data_size}.pdf", format="pdf")
+        return fig_tri
+
+    return (viz_likelihood,)
+
+
+@app.cell
+def _(theta_mle, visit_counts, viz_likelihood):
+    viz_likelihood(
+        visit_counts, 
+        "likelihood", 
+        f"$x$ = ({visit_counts[0]:g}, {visit_counts[1]:g}, {visit_counts[2]:g})",
+        theta_mle=theta_mle
+    )
+    return
 
 
 @app.cell(hide_code=True)
@@ -130,22 +193,31 @@ def _(simplex_grid):
 
 
 @app.cell
-def _(MaxNLocator, T1, T2, T3, dirichlet, np, plt):
-    def viz_dirichlet_density(alpha, title, sub_title, vmax=32, cmap="inferno", theta_mle=None):
+def _(flower_colors, flowers, plt):
+    def setup_simplex():
         fig_tri, ax_tri = plt.subplots(subplot_kw={"projection": "ternary"})
 
+        ax_tri.set_tlabel(f"$\\theta_{{\\rm {flowers[0]}}}$", color=flower_colors[0])
+        ax_tri.set_llabel(f"$\\theta_{{\\rm {flowers[1]}}}$", color=flower_colors[1])
+        ax_tri.set_rlabel(f"$\\theta_{{\\rm {flowers[2]}}}$", color=flower_colors[2])
+        ax_tri.taxis.set_label_position("tick1")
+        ax_tri.laxis.set_label_position("tick1")
+        ax_tri.raxis.set_label_position("tick1")
+
+        return fig_tri, ax_tri
+
+    return (setup_simplex,)
+
+
+@app.cell
+def _(MaxNLocator, T1, T2, T3, data_size, dirichlet, np, plt, setup_simplex):
+    def viz_dirichlet_density(alpha, title, sub_title, vmax=32, cmap="inferno", theta_mle=None):
+        fig_tri, ax_tri = setup_simplex()
         Z = [dirichlet.pdf(np.array([T1[i], T2[i], T3[i]]), alpha) for i in range(T1.shape[0])]
         if np.max(Z) > vmax:
             raise Exception(f"increase vmax! at least {np.max(Z)}")
 
         cs = ax_tri.tricontourf(T1, T2, T3, Z, levels=12, cmap=cmap, vmin=0.0, vmax=vmax)
-
-        ax_tri.set_tlabel(r"$\theta_1$")
-        ax_tri.set_llabel(r"$\theta_2$")
-        ax_tri.set_rlabel(r"$\theta_3$")
-        ax_tri.taxis.set_label_position("tick1")
-        ax_tri.laxis.set_label_position("tick1")
-        ax_tri.raxis.set_label_position("tick1")
 
         ax_tri.text(
             0.5, -0.5, title,
@@ -167,6 +239,7 @@ def _(MaxNLocator, T1, T2, T3, dirichlet, np, plt):
         cbar.set_label("density")
 
         fig_tri.tight_layout()
+        plt.savefig(f"likelihood_{title}_{data_size}.pdf", format="pdf")
         return fig_tri
 
     return (viz_dirichlet_density,)
@@ -196,7 +269,7 @@ def _(alpha_posterior, np, visit_counts, viz_dirichlet_density):
 @app.cell
 def _(flower_colors, flowers, plt, visit_counts):
     def viz_visit_counts(visit_counts):
-        fig_bar, ax_bar = plt.subplots(figsize=(6, 5))
+        fig_bar, ax_bar = plt.subplots(figsize=(3.5, 5))
         bars = ax_bar.bar(
             flowers,
             visit_counts,
@@ -222,6 +295,11 @@ def _(flower_colors, flowers, plt, visit_counts):
         return fig_bar
 
     viz_visit_counts(visit_counts)
+    return
+
+
+@app.cell
+def _():
     return
 
 
