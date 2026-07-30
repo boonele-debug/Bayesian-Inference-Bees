@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.11"
+__generated_with = "0.23.15"
 app = marimo.App(width="medium")
 
 
@@ -76,7 +76,7 @@ def _(dropdown, np):
 
     size_to_visit_counts = {
         "small": [2, 5, 1],
-        "medium": [6, 12, 1],
+        "medium": [5, 11, 1],
         "large": [11, 26, 2]
     }
 
@@ -112,12 +112,12 @@ def _(MaxNLocator, T1, T2, T3, data_size, multinomial, np, plt, setup_simplex):
         cs = ax_tri.tricontourf(T1, T2, T3, Z, levels=12, cmap=cmap, vmin=0.0, vmax=vmax)
 
         ax_tri.text(
-            0.5, -0.5, title,
+            0.5, -0.3, title,
             transform=ax_tri.transAxes,
             ha="center", fontsize=16, fontweight="bold",
         )
         ax_tri.text(
-            0.5, -0.65, subtitle,
+            0.5, -0.4, subtitle,
             transform=ax_tri.transAxes,
             ha="center", fontsize=16, color="gray",
         )
@@ -130,8 +130,8 @@ def _(MaxNLocator, T1, T2, T3, data_size, multinomial, np, plt, setup_simplex):
         cbar.update_ticks()
         cbar.set_label("score")
 
-        fig_tri.tight_layout()
-        plt.savefig(f"likelihood_{data_size}.pdf", format="pdf")
+        # fig_tri.tight_layout()
+        plt.savefig(f"likelihood_{data_size}.pdf", format="pdf", bbox_inches="tight")
         return fig_tri
 
     return (viz_likelihood,)
@@ -239,12 +239,12 @@ def _(
         cs = ax_tri.tricontourf(T1, T2, T3, Z, levels=12, cmap=cmap, vmin=0.0, vmax=vmax)
 
         ax_tri.text(
-            0.5, -0.5, title,
+            0.5, -0.3, title,
             transform=ax_tri.transAxes,
             ha="center", fontsize=16, fontweight="bold",
         )
         ax_tri.text(
-            0.5, -0.65, sub_title,
+            0.5, -0.4, sub_title,
             transform=ax_tri.transAxes,
             ha="center", fontsize=16, color="gray",
         )
@@ -257,8 +257,8 @@ def _(
         cbar.update_ticks()
         cbar.set_label("density")
 
-        fig_tri.tight_layout()
-        plt.savefig(f"likelihood_{title}_{data_size}.pdf", format="pdf")
+        # fig_tri.tight_layout()
+        plt.savefig(f"{title}_{data_size}.pdf", format="pdf", bbox_inches="tight")
         return fig_tri
 
     return (viz_dirichlet_density,)
@@ -268,7 +268,7 @@ def _(
 def _():
     vmax_pr_po = {
         "small": 25.0, 
-        "medium": 30.0,
+        "medium": 27.0,
         "large": 50.0
     }
     return (vmax_pr_po,)
@@ -296,9 +296,9 @@ def _(alpha_posterior, theta_mle, viz_dirichlet_density):
 
 
 @app.cell
-def _(flower_colors, flowers, plt, visit_counts):
+def _(data_size, flower_colors, flowers, plt, visit_counts):
     def viz_visit_counts(visit_counts):
-        fig_bar, ax_bar = plt.subplots(figsize=(3.5, 5))
+        fig_bar, ax_bar = plt.subplots()
         bars = ax_bar.bar(
             flowers,
             visit_counts,
@@ -317,13 +317,20 @@ def _(flower_colors, flowers, plt, visit_counts):
             )
 
         ax_bar.set_ylabel(r"number of bee visits")
-        ax_bar.set_title(f"observations (n = {int(visit_counts.sum())})")
+        ax_bar.set_title(
+            rf"observations (n={int(visit_counts.sum())}): $\mathbf{{x}}$ = ({visit_counts[0]:g}, {visit_counts[1]:g}, {visit_counts[2]:g})")
         ax_bar.set_ylim(0, max(visit_counts.max(), 1) * 1.15 + 1)
         ax_bar.spines[["top", "right"]].set_visible(False)
         fig_bar.tight_layout()
+        plt.savefig(f"data_{data_size}.pdf", format="pdf")
         return fig_bar
 
     viz_visit_counts(visit_counts)
+    return
+
+
+@app.cell
+def _():
     return
 
 
