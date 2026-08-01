@@ -1,6 +1,8 @@
+
+
 import marimo
 
-__generated_with = "0.23.11"
+__generated_with = "0.13.2"
 app = marimo.App(width="medium")
 
 
@@ -21,11 +23,13 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""
-    # 🌸 ::selfhst:nyt-spelling-bee:: problem setup
+    mo.md(
+        r"""
+        # 🌸 ::selfhst:nyt-spelling-bee:: problem setup
 
-    define the list of flowers
-    """)
+        define the list of flowers
+        """
+    )
     return
 
 
@@ -40,23 +44,33 @@ def _(sns):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""
-    # prior
-    """)
+    mo.md(r"""# prior""")
     return
-
-
-@app.cell
-def _(np):
-    alpha_prior = np.array([3.0, 3.0, 3.0])
-    return (alpha_prior,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""
-    # data (visit counts)
-    """)
+    dropdown_prior = mo.ui.dropdown(
+        options=["default", "strong"], value="default", label="choose prior strength"
+    )
+    dropdown_prior
+    return (dropdown_prior,)
+
+
+@app.cell
+def _(dropdown_prior, np):
+    prior_type = dropdown_prior.value
+
+    if prior_type == "default":
+        alpha_prior = np.array([3.0, 3.0, 3.0])
+    elif prior_type == "strong":
+        alpha_prior = np.array([10.0, 10.0, 10.0])
+    return alpha_prior, prior_type
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""# data (visit counts)""")
     return
 
 
@@ -74,14 +88,14 @@ def _(dropdown, np):
     data_size = dropdown.value
 
     size_to_visit_counts = {
-        "small": [2, 5, 1],
+        "small": [2, 5, 0],
         "medium": [5, 11, 1],
-        "large": [11, 26, 2]
+        "large": [27, 53, 6]
     }
 
     visit_counts = np.array(size_to_visit_counts[data_size])
     data_size, visit_counts
-    return data_size, visit_counts
+    return data_size, size_to_visit_counts, visit_counts
 
 
 @app.cell
@@ -140,7 +154,7 @@ def _(MaxNLocator, T1, T2, T3, data_size, multinomial, np, plt, setup_simplex):
 def _(theta_mle, visit_counts, viz_likelihood):
     viz_likelihood(
         visit_counts, 
-        "likelihood", 
+        "likelihood function", 
         rf"$\mathbf{{x}}$ = ({visit_counts[0]:g}, {visit_counts[1]:g}, {visit_counts[2]:g})",
         theta_mle=theta_mle
     )
@@ -149,9 +163,7 @@ def _(theta_mle, visit_counts, viz_likelihood):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""
-    # posterior
-    """)
+    mo.md(r"""# posterior""")
     return
 
 
@@ -164,9 +176,7 @@ def _(alpha_prior, visit_counts):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""
-    # visualization of probability density
-    """)
+    mo.md(r"""# visualization of probability density""")
     return
 
 
@@ -206,7 +216,6 @@ def _(flower_colors, flowers, plt):
         ax_tri.raxis.set_label_position("tick1")
 
         return fig_tri, ax_tri
-
     return (setup_simplex,)
 
 
@@ -220,12 +229,13 @@ def _(
     dirichlet,
     np,
     plt,
+    prior_type,
     setup_simplex,
     vmax_pr_po,
 ):
     def viz_dirichlet_density(
         alpha, title, sub_title, 
-        vmax=vmax_pr_po[data_size], cmap="inferno", theta_mle=None
+        vmax=vmax_pr_po[data_size][prior_type], cmap="inferno", theta_mle=None, savename=None
     ):    
         fig_tri, ax_tri = setup_simplex()
         Z = [dirichlet.pdf(np.array([T1[i], T2[i], T3[i]]), alpha) for i in range(T1.shape[0])]
@@ -249,7 +259,7 @@ def _(
         )
 
         if theta_mle is not None:
-            ax_tri.scatter(theta_mle[0], theta_mle[1], theta_mle[2], marker="^", color="white")
+            ax_tri.scatter(theta_mle[0], theta_mle[1], theta_mle[2], marker="^", color="white", zorder=100)
 
         cbar = fig_tri.colorbar(cs, ax=ax_tri, shrink=0.6)
         cbar.locator = MaxNLocator(nbins=4)  # roughly 4 ticks
@@ -257,45 +267,60 @@ def _(
         cbar.set_label("density")
 
         # fig_tri.tight_layout()
-        plt.savefig(f"{title}_{data_size}.pdf", format="pdf", bbox_inches="tight")
+        if savename is not None:
+            plt.savefig(savename + ".pdf", format="pdf", bbox_inches="tight")
         return fig_tri
-
     return (viz_dirichlet_density,)
 
 
 @app.cell
 def _():
     vmax_pr_po = {
-        "small": 25.0, 
-        "medium": 27.0,
-        "large": 50.0
+        "small": {"default": 26.6}, 
+        "medium": {"default": 26.6, "strong": 40.7},
+        "large": {"default": 116.0}
     }
     return (vmax_pr_po,)
 
 
 @app.cell
-def _(alpha_prior, viz_dirichlet_density):
+def _(alpha_prior, prior_type, viz_dirichlet_density):
     viz_dirichlet_density(
         alpha_prior, 
-        "prior", 
-        rf"$\mathbf{{\alpha}}$ = ({alpha_prior[0]:g}, {alpha_prior[1]:g}, {alpha_prior[2]:g})"
+        "Dirichlet prior pdf", 
+        rf"concentration params: $\mathbf{{\alpha}}$ = ({alpha_prior[0]:g}, {alpha_prior[1]:g}, {alpha_prior[2]:g})",
+        savename=f"prior_{prior_type}"
     )
     return
 
 
 @app.cell
-def _(alpha_posterior, theta_mle, viz_dirichlet_density):
+def _(
+    alpha_posterior,
+    data_size,
+    prior_type,
+    theta_mle,
+    viz_dirichlet_density,
+):
     viz_dirichlet_density(
         alpha_posterior, 
-        "posterior", 
-        rf"$\mathbf{{\alpha+x}}$ = ({alpha_posterior[0]:g}, {alpha_posterior[1]:g}, {alpha_posterior[2]:g})",
-        theta_mle=theta_mle
+        "Dirichlet posterior pdf", 
+        rf"concentration params: $\mathbf{{\alpha+x}}$ = ({alpha_posterior[0]:g}, {alpha_posterior[1]:g}, {alpha_posterior[2]:g})",
+        theta_mle=theta_mle,
+        savename=f"posterior_{data_size}_under_{prior_type}_prior"
     )
     return
 
 
 @app.cell
-def _(data_size, flower_colors, flowers, plt, visit_counts):
+def _(
+    data_size,
+    flower_colors,
+    flowers,
+    plt,
+    size_to_visit_counts,
+    visit_counts,
+):
     def viz_visit_counts(visit_counts):
         fig_bar, ax_bar = plt.subplots()
         bars = ax_bar.bar(
@@ -307,20 +332,27 @@ def _(data_size, flower_colors, flowers, plt, visit_counts):
         )
 
         for bar, c in zip(bars, visit_counts):
+            delta = 0.1
+            if data_size == "small":
+                delta *= 4
             ax_bar.text(
                 bar.get_x() + bar.get_width() / 2,
-                bar.get_height() + max(visit_counts.max(), 1) * 0.02 + 0.1,
+                bar.get_height() + max(visit_counts.max(), 1) * 0.02 + delta,
                 str(int(c)),
                 ha="center",
                 fontsize=11,
             )
 
-        ax_bar.set_ylabel(r"number of bee visits")
+        ax_bar.set_ylabel(r"number of bees")
         ax_bar.set_title(
-            rf"observations (n={int(visit_counts.sum())}): $\mathbf{{x}}$ = ({visit_counts[0]:g}, {visit_counts[1]:g}, {visit_counts[2]:g})")
-        ax_bar.set_ylim(0, max(visit_counts.max(), 1) * 1.15 + 1)
+            rf"observations: $\mathbf{{x}}$ = ({visit_counts[0]:g}, {visit_counts[1]:g}, {visit_counts[2]:g})")
+        if data_size == "medium":
+            ax_bar.set_ylim(0, max(visit_counts.max(), 1) * 1.15 + 1)
+        else:
+            ax_bar.set_ylim(0, max(size_to_visit_counts["large"]) * 1.15 + 1)
+        
         ax_bar.spines[["top", "right"]].set_visible(False)
-        fig_bar.tight_layout()
+
         plt.savefig(f"data_{data_size}.pdf", format="pdf")
         return fig_bar
 
@@ -330,100 +362,119 @@ def _(data_size, flower_colors, flowers, plt, visit_counts):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""
-    # mosaic plot
-    """)
+    mo.md(r"""# mosaic plot""")
     return
 
 
 @app.cell
-def _(np, plt):
-    plt.cm.Greys(np.linspace(0.15, 0.85, 3 + 1))
+def _(sns):
+    sns.color_palette("pastel", 8)[4]
     return
 
 
 @app.cell
-def _(beta, binom, np, plt):
+def _(sns):
+    sns.color_palette("pastel", 8)
+    return
+
+
+@app.cell
+def _(beta, binom, np, plt, sns):
     def draw_mosaic():
-        # ── Parameters ──────────────────────────────────────────────
-        n = 5       # number of Binomial trials
-        a, b = 2, 3 # Beta prior parameters
+        cool_colors = sns.color_palette("pastel", 8)
+        x_strip_color = cool_colors[6]
+        theta_band_color = cool_colors[4]
     
+        # number of Binomial trials
+        n = 5
+    
+        # beta prior params
+        a, b = 1, 1.5
+
         # ── 1. Stretch theta to uniformity via probability integral transform ──
         # u = F_theta(theta)  →  theta = F_theta^{-1}(u)
-        u = np.linspace(0.001, 0.999, 1000)
+        u = np.linspace(0.0, 1.0, 1000)
         theta = beta.ppf(u, a, b)
-    
+
         # ── 2. Compute conditional probabilities p(x|theta) for x = 0..n ──
         x_vals = np.arange(n + 1)
         pmf = np.array([binom.pmf(x, n, theta) for x in x_vals])   # shape: (n+1, 1000)
         cdf = np.cumsum(pmf, axis=0)                               # conditional CDFs
 
         # ── 3. Highlight a specific (x, theta) region for Bayes illustration ──
-        x_demo = 3
+        x_demo = 2
         u1, u2 = 0.2, 0.4
-    
+        alpha_hl = 0.5
+
         # ── 4. Build the mosaic plot ────────────────────────────────────────
         fig, ax = plt.subplots()
-    
+
         colors = plt.cm.Greys(np.linspace(0.15, 0.85, n + 1))
+        for i in range(3):
+            colors[x_demo][i] = x_strip_color[i]
     
         # Draw each x-band
         for x in range(n + 1):
             lower = cdf[x - 1] if x > 0 else np.zeros_like(u)
             upper = cdf[x]
-            ax.fill_between(u, lower, upper, alpha=0.65,
+            ax.fill_between(u, lower, upper, alpha=alpha_hl if x == x_demo else 0.25,
                             color=colors[x], label=f'x = {x}')
             if x > 0:
                 ax.plot(u, lower, 'k-', linewidth=0.4)
+
+        # Prior strip
+        ax.axvspan(u1, u2, alpha=alpha_hl, color=theta_band_color, linewidth=0)
+
+        # Dedicated grid spanning exactly [u1, u2]
+        u_band = np.linspace(u1, u2, 200)
+        theta_band = beta.ppf(u_band, a, b)
     
-        lower_demo = cdf[x_demo - 1] if x_demo > 0 else np.zeros_like(u)
-        upper_demo = cdf[x_demo]
-        mask = (u >= u1) & (u <= u2)
+        pmf_band = np.array([binom.pmf(x, n, theta_band) for x in x_vals])
+        cdf_band = np.cumsum(pmf_band, axis=0)
     
-        # Prior strip (blue)
-        ax.axvspan(u1, u2, alpha=0.08, color='blue')
-    
-        # Joint cell
-        ax.fill_between(u[mask], lower_demo[mask], upper_demo[mask],
-                        alpha=0.95, color="aquamarine", edgecolor="aquamarine", linewidth=2)
-    
-        # Marginal band boundaries
-        band_color = "khaki"
-        ax.plot(u, lower_demo, linestyle='--', linewidth=2, alpha=0.7, color=band_color)
-        ax.plot(u, upper_demo, linestyle='--', linewidth=2, alpha=0.7, color=band_color)
-    
-        # ── 5. Numerical annotations ────────────────────────────────────────
-        joint_area = np.trapezoid(upper_demo[mask] - lower_demo[mask], u[mask])
-        marginal_area = np.trapezoid(upper_demo - lower_demo, u)
-        prior_area = u2 - u1
-        posterior = joint_area / marginal_area
-        likelihood_approx = joint_area / prior_area
-    
+        lower_demo = cdf_band[x_demo - 1] if x_demo > 0 else np.zeros_like(u_band)
+        upper_demo = cdf_band[x_demo]
+
+        ax.fill_between(u_band, lower_demo, upper_demo,
+                    facecolor='none', edgecolor=theta_band_color,
+                    hatch='//', linewidth=0.5, zorder=4)
+        ax.fill_between(u_band, lower_demo, upper_demo,
+                facecolor='none', edgecolor=x_strip_color,
+                hatch='\\\\', linewidth=0.5, zorder=4)
+
+        # # Marginal band boundaries
+        # band_color = cool_colors[2]
+        # ax.plot(u, lower_demo, linewidth=3, color=band_color)
+        # ax.plot(u, upper_demo, linewidth=3, color=band_color)
+
         # ── 6. Axes and labels ────────────────────────────────────────────
-        ax.set_xlabel(r'$u=\int_0^{\theta}\sum_{x=0}^{n} p(x,\theta^{\prime})\,d\theta^{\prime}$', fontsize=13)
-        ax.set_ylabel(r'$\mathbb{P}(x|θ)$ partition')
-    
+        # Top axis showing original theta scale
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)
-        ax.legend(loc='upper left', bbox_to_anchor=(1.02, 1),
-                  fontsize=10, title='observed data')
     
+        ax2 = ax.twiny()
+        theta_ticks = np.linspace(0, 1, 6)
+        u_ticks = beta.cdf(theta_ticks, a, b)
+        ax2.set_xlim(ax.get_xlim())   # now correctly copies (0, 1)
+        ax2.set_xticks(u_ticks)
+        ax2.set_xticklabels([f'{t:.1f}' for t in theta_ticks])
+        ax2.set_xlabel(r'$\theta$')
+        
+        ax.set_xlabel(r'cumulative prior probability $\int_0^{\theta}\sum_{x=0}^{n} p(x,\theta^{\prime})\,d\theta^{\prime}$', fontsize=13)
+        ax.set_ylabel(r'$\mathbb{P}(x|θ)$ partition')
+
+        ax.legend(loc='upper left', bbox_to_anchor=(1.02, 1),
+                  fontsize=10, title='count data')
+
         plt.tight_layout()
         plt.savefig('bayesian_mosaic.pdf', bbox_inches='tight', format="pdf")
         plt.show()
-
     return (draw_mosaic,)
 
 
 @app.cell
 def _(draw_mosaic):
     draw_mosaic()
-    return
-
-
-@app.cell
-def _():
     return
 
 
