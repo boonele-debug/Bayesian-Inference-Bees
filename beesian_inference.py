@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.15"
+__generated_with = "0.23.11"
 app = marimo.App(width="medium")
 
 
@@ -12,12 +12,11 @@ def _():
     import matplotlib
     import seaborn as sns
     from scipy.special import gammaln
-    from scipy.stats import dirichlet
-    from scipy.stats import multinomial
+    from scipy.stats import dirichlet, multinomial, beta, binom
     import mpltern
     from matplotlib.ticker import MaxNLocator
     matplotlib.rcParams.update({'font.size': 16})
-    return MaxNLocator, dirichlet, mo, multinomial, np, plt, sns
+    return MaxNLocator, beta, binom, dirichlet, mo, multinomial, np, plt, sns
 
 
 @app.cell(hide_code=True)
@@ -326,6 +325,100 @@ def _(data_size, flower_colors, flowers, plt, visit_counts):
         return fig_bar
 
     viz_visit_counts(visit_counts)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # mosaic plot
+    """)
+    return
+
+
+@app.cell
+def _(np, plt):
+    plt.cm.Greys(np.linspace(0.15, 0.85, 3 + 1))
+    return
+
+
+@app.cell
+def _(beta, binom, np, plt):
+    def draw_mosaic():
+        # ── Parameters ──────────────────────────────────────────────
+        n = 5       # number of Binomial trials
+        a, b = 2, 3 # Beta prior parameters
+    
+        # ── 1. Stretch theta to uniformity via probability integral transform ──
+        # u = F_theta(theta)  →  theta = F_theta^{-1}(u)
+        u = np.linspace(0.001, 0.999, 1000)
+        theta = beta.ppf(u, a, b)
+    
+        # ── 2. Compute conditional probabilities p(x|theta) for x = 0..n ──
+        x_vals = np.arange(n + 1)
+        pmf = np.array([binom.pmf(x, n, theta) for x in x_vals])   # shape: (n+1, 1000)
+        cdf = np.cumsum(pmf, axis=0)                               # conditional CDFs
+
+        # ── 3. Highlight a specific (x, theta) region for Bayes illustration ──
+        x_demo = 3
+        u1, u2 = 0.2, 0.4
+    
+        # ── 4. Build the mosaic plot ────────────────────────────────────────
+        fig, ax = plt.subplots()
+    
+        colors = plt.cm.Greys(np.linspace(0.15, 0.85, n + 1))
+    
+        # Draw each x-band
+        for x in range(n + 1):
+            lower = cdf[x - 1] if x > 0 else np.zeros_like(u)
+            upper = cdf[x]
+            ax.fill_between(u, lower, upper, alpha=0.65,
+                            color=colors[x], label=f'x = {x}')
+            if x > 0:
+                ax.plot(u, lower, 'k-', linewidth=0.4)
+    
+        lower_demo = cdf[x_demo - 1] if x_demo > 0 else np.zeros_like(u)
+        upper_demo = cdf[x_demo]
+        mask = (u >= u1) & (u <= u2)
+    
+        # Prior strip (blue)
+        ax.axvspan(u1, u2, alpha=0.08, color='blue')
+    
+        # Joint cell
+        ax.fill_between(u[mask], lower_demo[mask], upper_demo[mask],
+                        alpha=0.95, color="aquamarine", edgecolor="aquamarine", linewidth=2)
+    
+        # Marginal band boundaries
+        band_color = "khaki"
+        ax.plot(u, lower_demo, linestyle='--', linewidth=2, alpha=0.7, color=band_color)
+        ax.plot(u, upper_demo, linestyle='--', linewidth=2, alpha=0.7, color=band_color)
+    
+        # ── 5. Numerical annotations ────────────────────────────────────────
+        joint_area = np.trapezoid(upper_demo[mask] - lower_demo[mask], u[mask])
+        marginal_area = np.trapezoid(upper_demo - lower_demo, u)
+        prior_area = u2 - u1
+        posterior = joint_area / marginal_area
+        likelihood_approx = joint_area / prior_area
+    
+        # ── 6. Axes and labels ────────────────────────────────────────────
+        ax.set_xlabel(r'$u=\int_0^{\theta}\sum_{x=0}^{n} p(x,\theta^{\prime})\,d\theta^{\prime}$', fontsize=13)
+        ax.set_ylabel(r'$\mathbb{P}(x|θ)$ partition')
+    
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.legend(loc='upper left', bbox_to_anchor=(1.02, 1),
+                  fontsize=10, title='observed data')
+    
+        plt.tight_layout()
+        plt.savefig('bayesian_mosaic.pdf', bbox_inches='tight', format="pdf")
+        plt.show()
+
+    return (draw_mosaic,)
+
+
+@app.cell
+def _(draw_mosaic):
+    draw_mosaic()
     return
 
 
