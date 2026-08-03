@@ -437,10 +437,10 @@ def _(beta, binom, np, plt, sns):
 
         ax.fill_between(u_band, lower_demo, upper_demo,
                     facecolor='none', edgecolor=theta_band_color,
-                    hatch='//', linewidth=0.5, zorder=4)
+                    hatch='//', linewidth=1, zorder=4)
         ax.fill_between(u_band, lower_demo, upper_demo,
                 facecolor='none', edgecolor=x_strip_color,
-                hatch='\\\\', linewidth=0.5, zorder=4)
+                hatch='\\\\', linewidth=1, zorder=4)
 
         # # Marginal band boundaries
         # band_color = cool_colors[2]
@@ -460,14 +460,14 @@ def _(beta, binom, np, plt, sns):
         ax2.set_xticklabels([f'{t:.1f}' for t in theta_ticks])
         ax2.set_xlabel(r'$\theta$')
         
-        ax.set_xlabel(r'cumulative prior probability $\int_0^{\theta}\sum_{x=0}^{n} p(x,\theta^{\prime})\,d\theta^{\prime}$', fontsize=13)
+        ax.set_xlabel(r'cumulative prior probability $\int_0^{\theta}p(\theta^{\prime})\,d\theta^{\prime}$', fontsize=13)
         ax.set_ylabel(r'$\mathbb{P}(x|θ)$ partition')
 
         ax.legend(loc='upper left', bbox_to_anchor=(1.02, 1),
                   fontsize=10, title='count data')
 
         plt.tight_layout()
-        plt.savefig('bayesian_mosaic.pdf', bbox_inches='tight', format="pdf")
+        plt.savefig('mosaic_plot.pdf', bbox_inches='tight', format="pdf")
         plt.show()
     return (draw_mosaic,)
 
