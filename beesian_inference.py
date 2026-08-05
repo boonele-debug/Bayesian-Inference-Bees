@@ -392,12 +392,6 @@ def _(sns):
 
 
 @app.cell
-def _(visit_counts):
-    visit_counts
-    return
-
-
-@app.cell
 def _(
     BoundaryNorm,
     ListedColormap,
@@ -411,8 +405,8 @@ def _(
 ):
     def draw_mosaic():
         cool_colors = sns.color_palette("pastel", 8)
-        x_strip_color = cool_colors[6]
-        theta_band_color = cool_colors[4]
+        x_strip_color = cool_colors[1]
+        theta_band_color = cool_colors[2]
     
         # number of Binomial trials
         n = visit_counts.sum()
@@ -477,7 +471,7 @@ def _(
         ax.set_ylim(0, 1)
         ax.set_aspect('equal', adjustable='box')
     
-        ax.set_xlabel(r'cumulative prior probability $\int_0^{\theta}p(\theta^{\prime})\,d\theta^{\prime}$', fontsize=13)
+        ax.set_xlabel(r'cumulative prior probability $\int_0^{\theta}p(\theta^{\prime})\,d\theta^{\prime}$')
         ax.set_ylabel(r'$\mathbb{P}(x|θ)$ partition')
         # Discrete colorbar for x, using the original (pre-highlight) grey scale
         cmap = ListedColormap(colors)
