@@ -13,12 +13,25 @@ def _():
     import matplotlib.pyplot as plt
     import matplotlib
     import seaborn as sns
+    from matplotlib.colors import ListedColormap, BoundaryNorm
     from scipy.special import gammaln
     from scipy.stats import dirichlet, multinomial, beta, binom
     import mpltern
     from matplotlib.ticker import MaxNLocator
     matplotlib.rcParams.update({'font.size': 16})
-    return MaxNLocator, beta, binom, dirichlet, mo, multinomial, np, plt, sns
+    return (
+        BoundaryNorm,
+        ListedColormap,
+        MaxNLocator,
+        beta,
+        binom,
+        dirichlet,
+        mo,
+        multinomial,
+        np,
+        plt,
+        sns,
+    )
 
 
 @app.cell(hide_code=True)
@@ -368,7 +381,7 @@ def _(mo):
 
 @app.cell
 def _(sns):
-    sns.color_palette("pastel", 8)[4]
+    sns.color_palette("pastel", 8)[3]
     return
 
 
@@ -379,17 +392,34 @@ def _(sns):
 
 
 @app.cell
-def _(beta, binom, np, plt, sns):
+def _(visit_counts):
+    visit_counts
+    return
+
+
+@app.cell
+def _(
+    BoundaryNorm,
+    ListedColormap,
+    alpha_prior,
+    beta,
+    binom,
+    np,
+    plt,
+    sns,
+    visit_counts,
+):
     def draw_mosaic():
         cool_colors = sns.color_palette("pastel", 8)
         x_strip_color = cool_colors[6]
         theta_band_color = cool_colors[4]
     
         # number of Binomial trials
-        n = 5
+        n = visit_counts.sum()
     
         # beta prior params
-        a, b = 1, 1.5
+        a, b = alpha_prior[0], alpha_prior.sum() - alpha_prior[0]
+        print(f"a = {a}, b = {b}")
 
         # ── 1. Stretch theta to uniformity via probability integral transform ──
         # u = F_theta(theta)  →  theta = F_theta^{-1}(u)
@@ -402,8 +432,7 @@ def _(beta, binom, np, plt, sns):
         cdf = np.cumsum(pmf, axis=0)                               # conditional CDFs
 
         # ── 3. Highlight a specific (x, theta) region for Bayes illustration ──
-        x_demo = 2
-        u1, u2 = 0.2, 0.4
+        x_demo = 5
         alpha_hl = 0.5
 
         # ── 4. Build the mosaic plot ────────────────────────────────────────
@@ -423,11 +452,12 @@ def _(beta, binom, np, plt, sns):
                 ax.plot(u, lower, 'k-', linewidth=0.4)
 
         # Prior strip
+        theta1, theta2 = 0.2, 0.3          # <-- band now selected in true theta-space
+        u1, u2 = beta.cdf([theta1, theta2], a, b)   # convert to u for plotting on the u-axis
         ax.axvspan(u1, u2, alpha=alpha_hl, color=theta_band_color, linewidth=0)
 
-        # Dedicated grid spanning exactly [u1, u2]
-        u_band = np.linspace(u1, u2, 200)
-        theta_band = beta.ppf(u_band, a, b)
+        theta_band = np.linspace(theta1, theta2, 200)
+        u_band = beta.cdf(theta_band, a, b)
     
         pmf_band = np.array([binom.pmf(x, n, theta_band) for x in x_vals])
         cdf_band = np.cumsum(pmf_band, axis=0)
@@ -442,32 +472,48 @@ def _(beta, binom, np, plt, sns):
                 facecolor='none', edgecolor=x_strip_color,
                 hatch='\\\\', linewidth=1, zorder=4)
 
-        # # Marginal band boundaries
-        # band_color = cool_colors[2]
-        # ax.plot(u, lower_demo, linewidth=3, color=band_color)
-        # ax.plot(u, upper_demo, linewidth=3, color=band_color)
-
         # ── 6. Axes and labels ────────────────────────────────────────────
-        # Top axis showing original theta scale
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)
+        ax.set_aspect('equal', adjustable='box')
     
-        ax2 = ax.twiny()
-        theta_ticks = np.linspace(0, 1, 6)
-        u_ticks = beta.cdf(theta_ticks, a, b)
-        ax2.set_xlim(ax.get_xlim())   # now correctly copies (0, 1)
-        ax2.set_xticks(u_ticks)
-        ax2.set_xticklabels([f'{t:.1f}' for t in theta_ticks])
-        ax2.set_xlabel(r'$\theta$')
-        
         ax.set_xlabel(r'cumulative prior probability $\int_0^{\theta}p(\theta^{\prime})\,d\theta^{\prime}$', fontsize=13)
         ax.set_ylabel(r'$\mathbb{P}(x|θ)$ partition')
+        # Discrete colorbar for x, using the original (pre-highlight) grey scale
+        cmap = ListedColormap(colors)
+        bounds = np.arange(n + 2) - 0.5          # bin edges centered on integers
+        norm = BoundaryNorm(bounds, cmap.N)
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
+        cbar = fig.colorbar(sm, ax=ax, ticks=np.arange(n + 1),
+                             pad=0.02, fraction=0.05)
+        cbar.set_label('count data $x$')
 
-        ax.legend(loc='upper left', bbox_to_anchor=(1.02, 1),
-                  fontsize=10, title='count data')
+        # Force layout resolution so ax's square box is finalized
+        fig.canvas.draw()
 
-        plt.tight_layout()
-        plt.savefig('mosaic_plot.pdf', bbox_inches='tight', format="pdf")
+        # Build an independent axes on top of ax's *final* square position,
+        # instead of a shared-axis twin, to avoid the aspect/adjustable conflict
+        ax2 = fig.add_axes(ax.get_position(), frameon=False)
+        ax2.set_xlim(0, 1)
+        ax2.set_ylim(ax.get_ylim())
+        ax2.yaxis.set_visible(False)
+        ax2.xaxis.tick_top()
+        ax2.xaxis.set_label_position('top')
+
+        theta_ticks = np.linspace(0, 1, 11)
+        u_ticks = beta.cdf(theta_ticks, a, b)
+        ax2.set_xticks(u_ticks)
+        tlabels = [f'{t:.1f}' for t in theta_ticks]
+        tlabels[1] = ""
+        tlabels[-2] = ""
+        tlabels[-3] = ""
+        tlabels[-4] = ""
+        tlabels[-5] = ""
+        ax2.set_xticklabels(tlabels)
+        ax2.set_xlabel(r'$\theta$')
+
+        plt.savefig('mosaic_plot.pdf', bbox_inches='tight', pad_inches=0.05, format="pdf")
         plt.show()
     return (draw_mosaic,)
 
