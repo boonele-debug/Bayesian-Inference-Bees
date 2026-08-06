@@ -16,6 +16,7 @@ def _():
     import seaborn as sns
     from matplotlib.colors import ListedColormap, BoundaryNorm
     from scipy.special import gammaln
+    from matplotlib.ticker import MultipleLocator
     from scipy.stats import dirichlet, multinomial, beta, binom
     import mpltern
     from matplotlib.ticker import MaxNLocator
@@ -24,6 +25,7 @@ def _():
         BoundaryNorm,
         ListedColormap,
         MaxNLocator,
+        MultipleLocator,
         Patch,
         beta,
         binom,
@@ -92,7 +94,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     dropdown = mo.ui.dropdown(
-        options=["small", "medium", "large"], value="small", label="choose data size"
+        options=["small", "medium", "large"], value="medium", label="choose data size"
     )
     dropdown
     return (dropdown,)
@@ -239,7 +241,6 @@ def _(flower_colors, flowers, plt):
         ax_tri.raxis.set_label_position("tick1")
 
         return fig_tri, ax_tri
-
     return (setup_simplex,)
 
 
@@ -294,16 +295,15 @@ def _(
         if savename is not None:
             plt.savefig(savename + ".pdf", format="pdf", bbox_inches="tight")
         return fig_tri
-
     return (viz_dirichlet_density,)
 
 
 @app.cell
 def _():
     vmax_pr_po = {
-        "small": {"default": 26.6}, 
-        "medium": {"default": 26.6, "strong": 40.7},
-        "large": {"default": 116.0}
+        "small": {"default": 30.35}, 
+        "medium": {"default": 30.35, "strong": 43.7},
+        "large": {"default": 70.0}
     }
     return (vmax_pr_po,)
 
@@ -405,9 +405,10 @@ def _(
     
         fig, ax = plt.subplots()
     
-        ax.bar(idx - bar_width, mle, width=bar_width, label='MLE', color=flower_colors, hatch='//')
-        ax.bar(idx, pr, width=bar_width, label='prior predictive', color=flower_colors)
-        ax.bar(idx + bar_width, po, width=bar_width, label='posterior predictive', color=flower_colors, hatch='..')
+        ax.bar(idx - bar_width, pr, width=bar_width, label='prior predictive', color=flower_colors)
+        ax.bar(idx, po, width=bar_width, label='posterior predictive', color=flower_colors, hatch='..')
+        ax.bar(idx + bar_width, mle, width=bar_width, label='MLE', color=flower_colors, hatch='//')
+    
     
         ax.set_xticks(idx)
         ax.set_xticklabels(flowers)
@@ -417,16 +418,70 @@ def _(
         # ax.set_ylim(0, max(mle.max(), prior_mean.max(), posterior_mean.max()) * 1.2)
 
         legend_elements = [
-            Patch(facecolor='white', edgecolor='black', label='MLE'),
-            Patch(facecolor='white', edgecolor='black', hatch='//', label='prior predictive'),
-            Patch(facecolor='white', edgecolor='black', hatch='..', label='posterior predictive'),
+            Patch(facecolor='white', edgecolor='black',  label='prior\npredictive'),
+            Patch(facecolor='white', edgecolor='black', label='posterior\npredictive',hatch='..'),
+            Patch(facecolor='white', edgecolor='black', label='MLE', hatch='//')
         ]
-        ax.legend(handles=legend_elements)
+        ax.legend(handles=legend_elements, fontsize=12, loc="upper left")
 
         plt.savefig(f'posterior_predictive_{data_size}.pdf', format="pdf")
         plt.show()
     
     draw_posterior_predictive(visit_counts, alpha_prior)
+    return
+
+
+@app.cell
+def _(
+    MultipleLocator,
+    alpha_prior,
+    data_size,
+    plt,
+    prior_type,
+    setup_simplex,
+    visit_counts,
+):
+    def compare_estimators(visit_counts, alpha_prior):
+        mle = visit_counts / visit_counts.sum()
+        pr = alpha_prior / alpha_prior.sum()
+        po = (alpha_prior + visit_counts) / (alpha_prior.sum() + visit_counts.sum())
+
+        fig_tri, ax_tri = setup_simplex()
+        ax_tri.set_axisbelow(True)   # forces gridlines below all plot elements (bars, scatter, etc.)
+        ax_tri.grid(True, zorder=0)
+    
+        ax_tri.taxis.set_minor_locator(MultipleLocator(0.1))
+        ax_tri.laxis.set_minor_locator(MultipleLocator(0.1))
+        ax_tri.raxis.set_minor_locator(MultipleLocator(0.1))
+    
+        ax_tri.grid(True, which='major', zorder=0)
+        ax_tri.grid(True, which='minor', zorder=0, alpha=0.4, linewidth=0.5)
+
+        data_title = rf"$\mathbf{{x}}$ = ({visit_counts[0]:g}, {visit_counts[1]:g}, {visit_counts[2]:g})"
+        alpha_title = rf"$\mathbf{{\alpha}}$ = ({alpha_prior[0]:g}, {alpha_prior[1]:g}, {alpha_prior[2]:g})"
+        subtitle = data_title + "\n" + alpha_title
+        ax_tri.text(
+            0.5, -0.275, "predictive estimators",
+            transform=ax_tri.transAxes,
+            ha="center", fontsize=16, fontweight="bold",
+        )
+        ax_tri.text(
+            0.5, -0.425, subtitle,
+            transform=ax_tri.transAxes,
+            ha="center", fontsize=16, color="gray",
+        )
+
+        s = 50
+        ax_tri.scatter(pr[0], pr[1], pr[2], marker="o", color="black", zorder=100, label="prior", s=s)
+        ax_tri.scatter(mle[0], mle[1], mle[2], marker="^", color="black", zorder=100, label="MLE", s=s)
+        ax_tri.scatter(po[0], po[1], po[2], marker="s", color="black", zorder=100, label="posterior", s=s)
+    
+        ax_tri.legend(fontsize=12, loc='upper left', bbox_to_anchor=(0.75, 1.0))
+
+        plt.savefig(f"predictive_estimators_{data_size}_under_{prior_type}_prior.pdf", format="pdf", bbox_inches="tight")
+        return fig_tri
+
+    compare_estimators(visit_counts, alpha_prior)
     return
 
 
@@ -462,8 +517,8 @@ def _(
 ):
     def draw_mosaic():
         cool_colors = sns.color_palette("pastel", 8)
-        x_strip_color = cool_colors[1]
-        theta_band_color = cool_colors[2]
+        x_strip_color = cool_colors[3]
+        theta_band_color = cool_colors[0]
 
         # number of Binomial trials
         n = visit_counts.sum()
@@ -566,13 +621,13 @@ def _(
 
         plt.savefig('mosaic_plot.pdf', bbox_inches='tight', pad_inches=0.05, format="pdf")
         plt.show()
-
     return (draw_mosaic,)
 
 
 @app.cell
-def _(draw_mosaic):
-    draw_mosaic()
+def _(data_size, draw_mosaic, prior_type):
+    if data_size == "medium" and prior_type == "default":
+        draw_mosaic()
     return
 
 
