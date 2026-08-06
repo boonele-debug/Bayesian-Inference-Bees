@@ -1,6 +1,8 @@
+
+
 import marimo
 
-__generated_with = "0.23.15"
+__generated_with = "0.13.2"
 app = marimo.App(width="medium")
 
 
@@ -10,6 +12,7 @@ def _():
     import numpy as np
     import matplotlib.pyplot as plt
     import matplotlib
+    from matplotlib.patches import Patch
     import seaborn as sns
     from matplotlib.colors import ListedColormap, BoundaryNorm
     from scipy.special import gammaln
@@ -21,6 +24,7 @@ def _():
         BoundaryNorm,
         ListedColormap,
         MaxNLocator,
+        Patch,
         beta,
         binom,
         dirichlet,
@@ -34,11 +38,13 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""
-    # 🌸 ::selfhst:nyt-spelling-bee:: problem setup
+    mo.md(
+        r"""
+        # 🌸 ::selfhst:nyt-spelling-bee:: problem setup
 
-    define the list of flowers
-    """)
+        define the list of flowers
+        """
+    )
     return
 
 
@@ -53,9 +59,7 @@ def _(sns):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""
-    # prior
-    """)
+    mo.md(r"""# prior""")
     return
 
 
@@ -81,9 +85,7 @@ def _(dropdown_prior, np):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""
-    # data (visit counts)
-    """)
+    mo.md(r"""# data (visit counts)""")
     return
 
 
@@ -184,9 +186,7 @@ def _(theta_mle, visit_counts, viz_likelihood):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""
-    # posterior
-    """)
+    mo.md(r"""# posterior""")
     return
 
 
@@ -199,9 +199,7 @@ def _(alpha_prior, visit_counts):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""
-    # visualization of probability density
-    """)
+    mo.md(r"""# visualization of probability density""")
     return
 
 
@@ -382,26 +380,59 @@ def _(data_size, flower_colors, flowers, plt, visit_counts):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""
-    # posterior predictive
-    """)
+    mo.md(r"""# posterior predictive""")
     return
 
 
 @app.cell
-def _(labels, plt, sizes):
+def _(
+    Patch,
+    alpha_prior,
+    data_size,
+    flower_colors,
+    flowers,
+    np,
+    plt,
+    visit_counts,
+):
+    def draw_posterior_predictive(visit_counts, alpha_prior):
+        mle = visit_counts / visit_counts.sum()
+        pr = alpha_prior / alpha_prior.sum()
+        po = (alpha_prior + visit_counts) / (alpha_prior.sum() + visit_counts.sum())
+    
+        bar_width = 0.25
+        idx = np.arange(len(visit_counts))
+    
+        fig, ax = plt.subplots()
+    
+        ax.bar(idx - bar_width, mle, width=bar_width, label='MLE', color=flower_colors, hatch='//')
+        ax.bar(idx, pr, width=bar_width, label='prior predictive', color=flower_colors)
+        ax.bar(idx + bar_width, po, width=bar_width, label='posterior predictive', color=flower_colors, hatch='..')
+    
+        ax.set_xticks(idx)
+        ax.set_xticklabels(flowers)
+        ax.set_ylabel('selection probability, $\\theta_f$')
+        plt.xlabel("flower color, $f$")
+        ax.legend()
+        # ax.set_ylim(0, max(mle.max(), prior_mean.max(), posterior_mean.max()) * 1.2)
 
+        legend_elements = [
+            Patch(facecolor='white', edgecolor='black', label='MLE'),
+            Patch(facecolor='white', edgecolor='black', hatch='//', label='prior predictive'),
+            Patch(facecolor='white', edgecolor='black', hatch='..', label='posterior predictive'),
+        ]
+        ax.legend(handles=legend_elements)
 
-    fig, ax = plt.subplots()
-    ax.pie(sizes, labels=labels)
+        plt.savefig(f'posterior_predictive_{data_size}.pdf', format="pdf")
+        plt.show()
+    
+    draw_posterior_predictive(visit_counts, alpha_prior)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""
-    # mosaic plot
-    """)
+    mo.md(r"""# mosaic plot""")
     return
 
 
