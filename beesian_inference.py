@@ -1,8 +1,6 @@
-
-
 import marimo
 
-__generated_with = "0.13.2"
+__generated_with = "0.23.15"
 app = marimo.App(width="medium")
 
 
@@ -36,13 +34,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        # 🌸 ::selfhst:nyt-spelling-bee:: problem setup
+    mo.md(r"""
+    # 🌸 ::selfhst:nyt-spelling-bee:: problem setup
 
-        define the list of flowers
-        """
-    )
+    define the list of flowers
+    """)
     return
 
 
@@ -57,7 +53,9 @@ def _(sns):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# prior""")
+    mo.md(r"""
+    # prior
+    """)
     return
 
 
@@ -83,7 +81,9 @@ def _(dropdown_prior, np):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# data (visit counts)""")
+    mo.md(r"""
+    # data (visit counts)
+    """)
     return
 
 
@@ -97,18 +97,26 @@ def _(mo):
 
 
 @app.cell
-def _(dropdown, np):
+def _(np):
+    theta_true = np.array([0.3, 0.6, 0.1])
+    assert np.isclose(np.sum(theta_true), 1.0)
+    theta_true
+    return (theta_true,)
+
+
+@app.cell
+def _(dropdown, np, theta_true):
     data_size = dropdown.value
 
-    size_to_visit_counts = {
-        "small": [2, 5, 0],
-        "medium": [5, 11, 1],
-        "large": [27, 53, 6]
+    data_size_to_n = {
+        "small": 8, "medium": 20, "large": 50
     }
 
-    visit_counts = np.array(size_to_visit_counts[data_size])
+    np.random.seed(123)
+    visit_counts = np.random.multinomial(data_size_to_n[data_size], theta_true)
+
     data_size, visit_counts
-    return data_size, size_to_visit_counts, visit_counts
+    return data_size, visit_counts
 
 
 @app.cell
@@ -176,7 +184,9 @@ def _(theta_mle, visit_counts, viz_likelihood):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# posterior""")
+    mo.md(r"""
+    # posterior
+    """)
     return
 
 
@@ -189,7 +199,9 @@ def _(alpha_prior, visit_counts):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# visualization of probability density""")
+    mo.md(r"""
+    # visualization of probability density
+    """)
     return
 
 
@@ -229,6 +241,7 @@ def _(flower_colors, flowers, plt):
         ax_tri.raxis.set_label_position("tick1")
 
         return fig_tri, ax_tri
+
     return (setup_simplex,)
 
 
@@ -283,6 +296,7 @@ def _(
         if savename is not None:
             plt.savefig(savename + ".pdf", format="pdf", bbox_inches="tight")
         return fig_tri
+
     return (viz_dirichlet_density,)
 
 
@@ -326,14 +340,7 @@ def _(
 
 
 @app.cell
-def _(
-    data_size,
-    flower_colors,
-    flowers,
-    plt,
-    size_to_visit_counts,
-    visit_counts,
-):
+def _(data_size, flower_colors, flowers, plt, visit_counts):
     def viz_visit_counts(visit_counts):
         fig_bar, ax_bar = plt.subplots()
         bars = ax_bar.bar(
@@ -362,8 +369,8 @@ def _(
         if data_size == "medium":
             ax_bar.set_ylim(0, max(visit_counts.max(), 1) * 1.15 + 1)
         else:
-            ax_bar.set_ylim(0, max(size_to_visit_counts["large"]) * 1.15 + 1)
-        
+            ax_bar.set_ylim(0, 30 * 1.15 + 1)
+
         ax_bar.spines[["top", "right"]].set_visible(False)
 
         plt.savefig(f"data_{data_size}.pdf", format="pdf")
@@ -375,7 +382,26 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# mosaic plot""")
+    mo.md(r"""
+    # posterior predictive
+    """)
+    return
+
+
+@app.cell
+def _(labels, plt, sizes):
+
+
+    fig, ax = plt.subplots()
+    ax.pie(sizes, labels=labels)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # mosaic plot
+    """)
     return
 
 
@@ -407,10 +433,10 @@ def _(
         cool_colors = sns.color_palette("pastel", 8)
         x_strip_color = cool_colors[1]
         theta_band_color = cool_colors[2]
-    
+
         # number of Binomial trials
         n = visit_counts.sum()
-    
+
         # beta prior params
         a, b = alpha_prior[0], alpha_prior.sum() - alpha_prior[0]
         print(f"a = {a}, b = {b}")
@@ -435,7 +461,7 @@ def _(
         colors = plt.cm.Greys(np.linspace(0.15, 0.85, n + 1))
         for i in range(3):
             colors[x_demo][i] = x_strip_color[i]
-    
+
         # Draw each x-band
         for x in range(n + 1):
             lower = cdf[x - 1] if x > 0 else np.zeros_like(u)
@@ -452,10 +478,10 @@ def _(
 
         theta_band = np.linspace(theta1, theta2, 200)
         u_band = beta.cdf(theta_band, a, b)
-    
+
         pmf_band = np.array([binom.pmf(x, n, theta_band) for x in x_vals])
         cdf_band = np.cumsum(pmf_band, axis=0)
-    
+
         lower_demo = cdf_band[x_demo - 1] if x_demo > 0 else np.zeros_like(u_band)
         upper_demo = cdf_band[x_demo]
 
@@ -470,7 +496,7 @@ def _(
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)
         ax.set_aspect('equal', adjustable='box')
-    
+
         ax.set_xlabel(r'cumulative prior probability $\int_0^{\theta}p(\theta^{\prime})\,d\theta^{\prime}$')
         ax.set_ylabel(r'$\mathbb{P}(x|θ)$ partition')
         # Discrete colorbar for x, using the original (pre-highlight) grey scale
@@ -509,6 +535,7 @@ def _(
 
         plt.savefig('mosaic_plot.pdf', bbox_inches='tight', pad_inches=0.05, format="pdf")
         plt.show()
+
     return (draw_mosaic,)
 
 
