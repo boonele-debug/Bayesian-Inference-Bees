@@ -1,8 +1,6 @@
-
-
 import marimo
 
-__generated_with = "0.13.2"
+__generated_with = "0.23.15"
 app = marimo.App(width="medium")
 
 
@@ -40,13 +38,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        # 🌸 ::selfhst:nyt-spelling-bee:: problem setup
+    mo.md(r"""
+    # 🌸 ::selfhst:nyt-spelling-bee:: problem setup
 
-        define the list of flowers
-        """
-    )
+    define the list of flowers
+    """)
     return
 
 
@@ -61,7 +57,9 @@ def _(sns):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# prior""")
+    mo.md(r"""
+    # prior
+    """)
     return
 
 
@@ -87,7 +85,9 @@ def _(dropdown_prior, np):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# data (visit counts)""")
+    mo.md(r"""
+    # data (visit counts)
+    """)
     return
 
 
@@ -188,7 +188,9 @@ def _(theta_mle, visit_counts, viz_likelihood):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# posterior""")
+    mo.md(r"""
+    # posterior
+    """)
     return
 
 
@@ -201,7 +203,9 @@ def _(alpha_prior, visit_counts):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# visualization of probability density""")
+    mo.md(r"""
+    # visualization of probability density
+    """)
     return
 
 
@@ -241,6 +245,7 @@ def _(flower_colors, flowers, plt):
         ax_tri.raxis.set_label_position("tick1")
 
         return fig_tri, ax_tri
+
     return (setup_simplex,)
 
 
@@ -295,6 +300,7 @@ def _(
         if savename is not None:
             plt.savefig(savename + ".pdf", format="pdf", bbox_inches="tight")
         return fig_tri
+
     return (viz_dirichlet_density,)
 
 
@@ -380,7 +386,9 @@ def _(data_size, flower_colors, flowers, plt, visit_counts):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# posterior predictive""")
+    mo.md(r"""
+    # posterior predictive
+    """)
     return
 
 
@@ -399,17 +407,17 @@ def _(
         mle = visit_counts / visit_counts.sum()
         pr = alpha_prior / alpha_prior.sum()
         po = (alpha_prior + visit_counts) / (alpha_prior.sum() + visit_counts.sum())
-    
+
         bar_width = 0.25
         idx = np.arange(len(visit_counts))
-    
+
         fig, ax = plt.subplots()
-    
+
         ax.bar(idx - bar_width, pr, width=bar_width, label='prior predictive', color=flower_colors)
         ax.bar(idx, po, width=bar_width, label='posterior predictive', color=flower_colors, hatch='..')
         ax.bar(idx + bar_width, mle, width=bar_width, label='MLE', color=flower_colors, hatch='//')
-    
-    
+
+
         ax.set_xticks(idx)
         ax.set_xticklabels(flowers)
         ax.set_ylabel('selection probability, $\\theta_f$')
@@ -426,7 +434,7 @@ def _(
 
         plt.savefig(f'posterior_predictive_{data_size}.pdf', format="pdf")
         plt.show()
-    
+
     draw_posterior_predictive(visit_counts, alpha_prior)
     return
 
@@ -449,11 +457,11 @@ def _(
         fig_tri, ax_tri = setup_simplex()
         ax_tri.set_axisbelow(True)   # forces gridlines below all plot elements (bars, scatter, etc.)
         ax_tri.grid(True, zorder=0)
-    
+
         ax_tri.taxis.set_minor_locator(MultipleLocator(0.1))
         ax_tri.laxis.set_minor_locator(MultipleLocator(0.1))
         ax_tri.raxis.set_minor_locator(MultipleLocator(0.1))
-    
+
         ax_tri.grid(True, which='major', zorder=0)
         ax_tri.grid(True, which='minor', zorder=0, alpha=0.4, linewidth=0.5)
 
@@ -475,7 +483,7 @@ def _(
         ax_tri.scatter(pr[0], pr[1], pr[2], marker="o", color="black", zorder=100, label="prior", s=s)
         ax_tri.scatter(mle[0], mle[1], mle[2], marker="^", color="black", zorder=100, label="MLE", s=s)
         ax_tri.scatter(po[0], po[1], po[2], marker="s", color="black", zorder=100, label="posterior", s=s)
-    
+
         ax_tri.legend(fontsize=12, loc='upper left', bbox_to_anchor=(0.75, 1.0))
 
         plt.savefig(f"predictive_estimators_{data_size}_under_{prior_type}_prior.pdf", format="pdf", bbox_inches="tight")
@@ -487,7 +495,47 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# mosaic plot""")
+    mo.md(r"""
+    ## summarizing the posterior
+    """)
+    return
+
+
+@app.cell
+def _(alpha_prior, np, visit_counts):
+    alpha_plus = alpha_prior.sum() + visit_counts.sum() # concentration parameter
+    po_mean = (alpha_prior + visit_counts) / alpha_plus
+    print("posterior mean: ", po_mean)
+    po_var = po_mean * (1 - po_mean) / (alpha_plus + 1)
+    print("posterior std: ", np.sqrt(po_var))
+    po_mode = (alpha_prior + visit_counts - 1) / (visit_counts.sum() + alpha_prior.sum() - len(visit_counts))
+    print("posterior mode:", po_mode)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## interrogating the posterior
+    """)
+    return
+
+
+@app.cell
+def _(alpha_prior, dirichlet, flowers, np, visit_counts):
+    _f = "yellow"
+    _f_id = np.argmax(np.array(flowers) == _f)
+    _n_samples = 1000000
+    theta_po_samples = dirichlet.rvs(alpha_prior + visit_counts, _n_samples)
+    (theta_po_samples.argmax(axis=1) == _f_id).sum() / _n_samples
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # mosaic plot
+    """)
     return
 
 
@@ -621,6 +669,7 @@ def _(
 
         plt.savefig('mosaic_plot.pdf', bbox_inches='tight', pad_inches=0.05, format="pdf")
         plt.show()
+
     return (draw_mosaic,)
 
 
