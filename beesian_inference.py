@@ -533,17 +533,61 @@ def _(alpha_prior, print_posterior_stats, visit_counts):
 def _(mo):
     mo.md(r"""
     ## interrogating the posterior
+    via MC simulation
     """)
     return
 
 
 @app.cell
 def _(alpha_prior, dirichlet, flowers, np, visit_counts):
-    _f = "yellow"
-    _f_id = np.argmax(np.array(flowers) == _f)
-    _n_samples = 1000000
-    theta_po_samples = dirichlet.rvs(alpha_prior + visit_counts, _n_samples)
-    (theta_po_samples.argmax(axis=1) == _f_id).sum() / _n_samples
+    # draw samples from the posterior
+    n_MC_samples = 1000000
+    theta_po_samples = dirichlet.rvs(alpha_prior + visit_counts, n_MC_samples)
+
+    def mc_prob(in_region, name):
+        """
+        Posterior probability that theta lies in a region, with MC standard error.
+        """
+        p = in_region.mean()
+        se = np.sqrt(p * (1.0 - p) / in_region.size)
+        print(f"{name} = {p:.3f} +/- {se:.4f}")
+        return p, se
+    
+    def flower_id(color):
+        return flowers.index(color)  # raises if the color is not in the list
+
+
+    # Example 1: bees strongly dislike a color, i.e. select it with prob < theta_star
+    color, theta_star = "green", 0.1
+    i = flower_id(color)
+    mc_prob(
+        theta_po_samples[:, i] < theta_star,
+        f"P[theta_{color} < {theta_star}]",
+    )
+
+    # Example 2: bees prefer one color over another particular color
+    color, other_color = "purple", "green"
+    i, j = flower_id(color), flower_id(other_color)
+    mc_prob(
+        theta_po_samples[:, i] > theta_po_samples[:, j],
+        f"P[theta_{color} > theta_{other_color}]",
+    )
+
+    # Example 3: bees prefer one color over all others
+    color = "yellow"
+    i = flower_id(color)
+    mc_prob(
+        theta_po_samples.argmax(axis=1) == i,
+        f"P[{color} is the favorite]",
+    )
+
+    # Example 4: bees are indifferent (region of practical equivalence)
+    eps = 0.05
+    uniform_theta = np.ones(len(flowers)) / len(flowers)
+    mc_prob(
+        np.max(np.abs(theta_po_samples - uniform_theta), axis=1) < eps,
+        f"P[indifferent, eps={eps}]",
+    )
     return
 
 
