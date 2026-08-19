@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.15"
+__generated_with = "0.24.0"
 app = marimo.App(width="medium")
 
 
@@ -502,14 +502,30 @@ def _(mo):
 
 
 @app.cell
-def _(alpha_prior, np, visit_counts):
-    alpha_plus = alpha_prior.sum() + visit_counts.sum() # concentration parameter
-    po_mean = (alpha_prior + visit_counts) / alpha_plus
-    print("posterior mean: ", po_mean)
-    po_var = po_mean * (1 - po_mean) / (alpha_plus + 1)
-    print("posterior std: ", np.sqrt(po_var))
-    po_mode = (alpha_prior + visit_counts - 1) / (visit_counts.sum() + alpha_prior.sum() - len(visit_counts))
-    print("posterior mode:", po_mode)
+def _(beta, flowers):
+    def print_posterior_stats(visit_counts, alpha_prior, gamma=0.1):
+        alpha_plus = alpha_prior.sum() + visit_counts.sum() # concentration parameter
+
+        po_mean = (alpha_prior + visit_counts) / alpha_plus
+        print("posterior mean: ", po_mean)
+
+        po_mode = (alpha_prior + visit_counts - 1) / (visit_counts.sum() + alpha_prior.sum() - len(visit_counts))
+        print("posterior mode:", po_mode)
+
+        print("equal tailed credible intervals confidence level: ", gamma)
+        for f in range(len(visit_counts)):
+            print("\t", flowers[f])
+            lo, hi = beta.ppf([gamma/2, 1 - gamma/2], alpha_prior[f] + visit_counts[f], alpha_plus - (alpha_prior[f] + visit_counts[f]))
+            print(f"\t{lo:.2f}, {hi:.2f}")
+
+            print(f"\tMLE: {visit_counts[f]/visit_counts.sum():.2f}")
+
+    return (print_posterior_stats,)
+
+
+@app.cell
+def _(alpha_prior, print_posterior_stats, visit_counts):
+    print_posterior_stats(visit_counts, alpha_prior)
     return
 
 
