@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.24.0"
+__generated_with = "0.17.6"
 app = marimo.App(width="medium")
 
 
@@ -20,14 +20,13 @@ def _():
     from matplotlib.ticker import MaxNLocator
     matplotlib.rcParams.update({'font.size': 16})
     return (
-        BoundaryNorm,
-        ListedColormap,
         MaxNLocator,
         MultipleLocator,
         Patch,
         beta,
         binom,
         dirichlet,
+        matplotlib,
         mo,
         multinomial,
         np,
@@ -171,7 +170,6 @@ def _(MaxNLocator, T1, T2, T3, data_size, multinomial, np, plt, setup_simplex):
         # fig_tri.tight_layout()
         plt.savefig(f"likelihood_{data_size}.pdf", format="pdf", bbox_inches="tight")
         return fig_tri
-
     return (viz_likelihood,)
 
 
@@ -222,7 +220,6 @@ def _(np):
         mask = T3 >= 0
 
         return T1[mask], T2[mask], T3[mask]
-
     return (simplex_grid,)
 
 
@@ -245,7 +242,6 @@ def _(flower_colors, flowers, plt):
         ax_tri.raxis.set_label_position("tick1")
 
         return fig_tri, ax_tri
-
     return (setup_simplex,)
 
 
@@ -300,7 +296,6 @@ def _(
         if savename is not None:
             plt.savefig(savename + ".pdf", format="pdf", bbox_inches="tight")
         return fig_tri
-
     return (viz_dirichlet_density,)
 
 
@@ -519,7 +514,6 @@ def _(beta, flowers):
             print(f"\t{lo:.2f}, {hi:.2f}")
 
             print(f"\tMLE: {visit_counts[f]/visit_counts.sum():.2f}")
-
     return (print_posterior_stats,)
 
 
@@ -552,7 +546,7 @@ def _(alpha_prior, dirichlet, flowers, np, visit_counts):
         se = np.sqrt(p * (1.0 - p) / in_region.size)
         print(f"{name} = {p:.3f} +/- {se:.4f}")
         return p, se
-    
+
     def flower_id(color):
         return flowers.index(color)  # raises if the color is not in the list
 
@@ -612,24 +606,26 @@ def _(sns):
 
 
 @app.cell
-def _(
-    BoundaryNorm,
-    ListedColormap,
-    alpha_prior,
-    beta,
-    binom,
-    np,
-    plt,
-    sns,
-    visit_counts,
-):
+def _(np, plt):
+    plt.cm.Greys(np.linspace(0.15, 0.85,3 + 1))
+    return
+
+
+@app.cell
+def _(matplotlib, np):
+    np.concatenate((matplotlib.colors.to_rgb("darkturquoise"), [1]))
+    return
+
+
+@app.cell
+def _(alpha_prior, beta, binom, np, plt, sns):
     def draw_mosaic():
-        cool_colors = sns.color_palette("pastel", 8)
-        x_strip_color = cool_colors[3]
-        theta_band_color = cool_colors[0]
+        # https://matplotlib.org/stable/gallery/color/named_colors.html
+        x_strip_color = sns.color_palette("pastel", 8)[0]
+        theta_band_color = sns.color_palette("pastel", 8)[1]
 
         # number of Binomial trials
-        n = visit_counts.sum()
+        n = 10
 
         # beta prior params
         a, b = alpha_prior[0], alpha_prior.sum() - alpha_prior[0]
@@ -646,25 +642,27 @@ def _(
         cdf = np.cumsum(pmf, axis=0)                               # conditional CDFs
 
         # ── 3. Highlight a specific (x, theta) region for Bayes illustration ──
-        x_demo = 5
-        alpha_hl = 0.5
+        x_demo = 4
+        alpha_hl = 0.75
 
         # ── 4. Build the mosaic plot ────────────────────────────────────────
         fig, ax = plt.subplots()
-
-        colors = plt.cm.Greys(np.linspace(0.15, 0.85, n + 1))
-        for i in range(3):
-            colors[x_demo][i] = x_strip_color[i]
 
         # Draw each x-band
         for x in range(n + 1):
             lower = cdf[x - 1] if x > 0 else np.zeros_like(u)
             upper = cdf[x]
-            ax.fill_between(u, lower, upper, alpha=alpha_hl if x == x_demo else 0.25,
-                            color=colors[x], label=f'x = {x}')
+            if x == x_demo:
+                ax.fill_between(u, lower, upper, alpha=0.75,
+                                color=x_strip_color, label=f'x = {x}')
             if x > 0:
-                ax.plot(u, lower, 'k-', linewidth=0.4)
-
+                ax.plot(u, lower, 'k-', linewidth=2)
+                ax.plot(u, upper, 'k-', linewidth=2)
+        # bounding box
+        ax.plot([0, 0], [0, 1], 'k-', linewidth=2, clip_on=False)
+        ax.plot([1, 1], [0, 1], 'k-', linewidth=2, clip_on=False)
+        ax.plot([0, 1], [0, 0], 'k-', linewidth=2, clip_on=False)
+    
         # Prior strip
         theta1, theta2 = 0.2, 0.3          # <-- band now selected in true theta-space
         u1, u2 = beta.cdf([theta1, theta2], a, b)   # convert to u for plotting on the u-axis
@@ -691,45 +689,31 @@ def _(
         ax.set_ylim(0, 1)
         ax.set_aspect('equal', adjustable='box')
 
-        ax.set_xlabel(r'cumulative prior probability $\int_0^{\theta}p(\theta^{\prime})\,d\theta^{\prime}$')
-        ax.set_ylabel(r'$\mathbb{P}(x|θ)$ partition')
-        # Discrete colorbar for x, using the original (pre-highlight) grey scale
-        cmap = ListedColormap(colors)
-        bounds = np.arange(n + 2) - 0.5          # bin edges centered on integers
-        norm = BoundaryNorm(bounds, cmap.N)
-        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-        sm.set_array([])
-        cbar = fig.colorbar(sm, ax=ax, ticks=np.arange(n + 1),
-                             pad=0.02, fraction=0.05)
-        cbar.set_label('count data $x$')
+        # ax.set_xlabel(r'cumulative prior probability $\int_0^{\theta}p(\theta^{\prime})\,d\theta^{\prime}$')
+        ax.set_xlabel(r"$\boldsymbol{\theta}$ (deformed)")
+        ax.set_ylabel(r'$\mathbb{P}(\boldsymbol{x}|\boldsymbol{\theta})$ partitions')
+        # # Discrete colorbar for x, using the original (pre-highlight) grey scale
+        # cmap = ListedColormap(colors)
+        # bounds = np.arange(n + 2) - 0.5          # bin edges centered on integers
+        # norm = BoundaryNorm(bounds, cmap.N)
+        # sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+        # sm.set_array([])
+        # cbar = fig.colorbar(sm, ax=ax, ticks=[],
+        #                      pad=0.02, fraction=0.05)
+        # cbar.set_label('count data, $\\boldsymbol{x}$')
 
-        # Force layout resolution so ax's square box is finalized
-        fig.canvas.draw()
-
-        # Build an independent axes on top of ax's *final* square position,
-        # instead of a shared-axis twin, to avoid the aspect/adjustable conflict
-        ax2 = fig.add_axes(ax.get_position(), frameon=False)
-        ax2.set_xlim(0, 1)
-        ax2.set_ylim(ax.get_ylim())
-        ax2.yaxis.set_visible(False)
-        ax2.xaxis.tick_top()
-        ax2.xaxis.set_label_position('top')
 
         theta_ticks = np.linspace(0, 1, 11)
         u_ticks = beta.cdf(theta_ticks, a, b)
-        ax2.set_xticks(u_ticks)
-        tlabels = [f'{t:.1f}' for t in theta_ticks]
-        tlabels[1] = ""
-        tlabels[-2] = ""
-        tlabels[-3] = ""
-        tlabels[-4] = ""
-        tlabels[-5] = ""
-        ax2.set_xticklabels(tlabels)
-        ax2.set_xlabel(r'$\theta$')
+        ax.set_xticks(u_ticks)
+        tlabels = [f'' for t in theta_ticks]
+        tlabels[0] = "0"
+        tlabels[-1] = "1"
+        ax.set_xticklabels(tlabels)
+
 
         plt.savefig('mosaic_plot.pdf', bbox_inches='tight', pad_inches=0.05, format="pdf")
         plt.show()
-
     return (draw_mosaic,)
 
 
